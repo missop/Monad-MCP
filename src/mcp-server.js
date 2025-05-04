@@ -1,7 +1,10 @@
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
+const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
+const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
+const { z } = require("zod");
+const { ethers } = require('ethers');
 
+const MONAD_RPC_URL = 'https://testnet-rpc.monad.xyz/'; 
+const provider = new ethers.JsonRpcProvider(MONAD_RPC_URL);
 // Create an MCP server
 const server = new McpServer({
   name: "Demo",
@@ -9,25 +12,24 @@ const server = new McpServer({
 });
 
 // Add an addition tool
-server.tool("add",
-  { a: z.number(), b: z.number() },
-  async ({ a, b }) => ({
-    content: [{ type: "text", text: String(a + b) }]
-  })
-);
-
-// Add a dynamic greeting resource
-server.resource(
-  "greeting",
-  new ResourceTemplate("greeting://{name}", { list: undefined }),
-  async (uri, { name }) => ({
-    contents: [{
-      uri: uri.href,
-      text: `Hello, ${name}!`
-    }]
-  })
+server.tool("monad-balance",
+  { address : z.string().describe("Monad testnet address to check balance for")},
+  async ({address}) => {
+    const balance = await provider.getBalance(address);
+    const balanceInEth = ethers.formatEther(balance);
+    return {
+        "content":[{
+            type:"text",
+            text:balanceInEth
+        }]
+    }
+  }
 );
 
 // Start receiving messages on stdin and sending messages on stdout
 const transport = new StdioServerTransport();
-await server.connect(transport);
+async function main() {
+    await server.connect(transport);
+}
+
+main()
